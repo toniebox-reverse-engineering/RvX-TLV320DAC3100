@@ -141,7 +141,7 @@ bool RvX_TLV320DAC3100::send(uint8_t address, uint8_t target_register, uint8_t d
     if (!send_raw(target_register)) return false;
     if (!send_raw(data)) return false;
     
-    uint8_t result = _wire->endTransmission(false);
+    uint8_t result = _wire->endTransmission(true);
     if (!result) return true;
     return false;
 }
