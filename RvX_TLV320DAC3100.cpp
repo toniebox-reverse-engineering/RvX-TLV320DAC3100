@@ -150,7 +150,7 @@ uint8_t RvX_TLV320DAC3100::readByte(uint8_t address, uint8_t source_register) {
     _wire->beginTransmission(address);
     if (!send_raw(source_register)) return false;
     _wire->endTransmission(false);
-    if (!_wire->requestFrom(address ,1)) return false;
+    if (!_wire->requestFrom(address, (uint8_t)1)) return false;
     int result = _wire->read();
     if (result == -1) return false;
     return (uint8_t)result;
