@@ -118,8 +118,15 @@ bool RvX_TLV320DAC3100::setVolume(uint8_t volume) {
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::DAC_VOL_L_CTRL, volumeConv);
     send(ADDR_P0_SERIAL::DAC_VOL_R_CTRL, volumeConv);
-    while ((readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001) != 0b00010001) { delayTask(1); }
+    uint8_t flag_reg = 0;
+    for(uint8_t i=0; i<50; i++) {
+        flag_reg = readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001;
+        if (flag_reg == 0b00010001) {
     current_volume = volume;
+            return true;
+        }
+        delayTask(1);
+    }
     return false;
 }
 
