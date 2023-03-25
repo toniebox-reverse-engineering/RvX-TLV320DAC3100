@@ -10,9 +10,8 @@ class RvX_TLV320DAC3100 {
            INSERTED,
            REMOVED
         };
-        void
-            begin(uint8_t i2caddr),
-            loop();
+        bool begin(uint8_t i2caddr);
+        void loop();
 
         void
             beep(),
@@ -24,7 +23,7 @@ class RvX_TLV320DAC3100 {
             increaseVolume(),
             decreaseVolume();
 
-        void setVolume(uint8_t volume);
+        bool setVolume(uint8_t volume);
         uint8_t convertDacVol2BeepVol(uint8_t dacVol);
 
     private:
@@ -36,7 +35,7 @@ class RvX_TLV320DAC3100 {
         void delayTask(uint16_t ms);
         TwoWire *_wire;
         uint8_t _i2caddr;
-        void _initDACI2C();
+        bool _initDACI2C();
 
         bool
             send(uint8_t address, uint8_t target_register, uint8_t data),

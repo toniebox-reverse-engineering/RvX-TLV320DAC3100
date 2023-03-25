@@ -4,13 +4,17 @@ void RvX_TLV320DAC3100::delayTask(uint16_t ms) {
   delay(ms);
 }
 
-void RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
+bool RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
     _wire = &Wire;
+    _wire->begin();
     _i2caddr = i2caddr;
 
-    _initDACI2C();
+    if (!_initDACI2C())
+        return false;
 
-    setVolume(VOL_MIN);
+
+    if (!setVolume(VOL_MIN))
+        return false;
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::DAC_VOL_CTRL, 0x00);
 
@@ -23,6 +27,7 @@ void RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
         Events.handleHeadphoneEvent(HeadphoneEvent::REMOVED);
     };
     */
+   return true;
 }
 
 
@@ -108,13 +113,14 @@ uint8_t RvX_TLV320DAC3100::convertDacVol2BeepVol(uint8_t dacVol) {
     return beepVol & 0x3F;
 }
 
-void RvX_TLV320DAC3100::setVolume(uint8_t volume) {
+bool RvX_TLV320DAC3100::setVolume(uint8_t volume) {
     int8_t volumeConv = (int8_t)(volume-0x7F);
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::DAC_VOL_L_CTRL, volumeConv);
     send(ADDR_P0_SERIAL::DAC_VOL_R_CTRL, volumeConv);
     while ((readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001) != 0b00010001) { delayTask(1); }
     current_volume = volume;
+    return false;
 }
 
 bool RvX_TLV320DAC3100::send_raw(uint8_t data) {
@@ -143,9 +149,10 @@ uint8_t RvX_TLV320DAC3100::readByte(uint8_t address, uint8_t source_register) {
     return (uint8_t)result;
 }
 
-void RvX_TLV320DAC3100::_initDACI2C() {
+bool RvX_TLV320DAC3100::_initDACI2C() {
     //Extracted from logic analyzer capture of box
-    send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
+    if (!send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO))
+        return false;
     send(ADDR_P0_SERIAL::SOFTWARE_RESET, 0x01);     //Self-clearing software reset for control register
 
     send(ADDR_P0_SERIAL::CLOCKGEN_MUX, 0x07);       //0000:reserved, 01:PLL_CLKIN=BCLK, 11:CODEC_CLKIN=PLL_CLK 
@@ -238,4 +245,5 @@ void RvX_TLV320DAC3100::_initDACI2C() {
     // Extract END
     send(ADDR::PAGE_CONTROL, PAGE::DAC_OUT_VOL);
     send(ADDR_P1_DAC_OUT::L_VOL_TO_SPK, 128);
+    return true;
 }
