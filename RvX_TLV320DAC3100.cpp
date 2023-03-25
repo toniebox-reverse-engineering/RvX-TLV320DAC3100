@@ -247,3 +247,90 @@ bool RvX_TLV320DAC3100::_initDACI2C() {
     send(ADDR_P1_DAC_OUT::L_VOL_TO_SPK, 128);
     return true;
 }
+
+void RvX_TLV320DAC3100::beepRaw(uint16_t sin, uint16_t cos, uint32_t length) {
+    beepRaw(sin, cos, length, convertDacVol2BeepVol(current_volume));
+}
+void RvX_TLV320DAC3100::beepRaw(uint16_t sin, uint16_t cos, uint32_t length, uint8_t volume) {
+    send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
+
+    send(ADDR_P0_SERIAL::DAC_VOL_CTRL, 0x0C); //mute DACs //optional
+    //f 30 26 xxx1xxx1 # wait for DAC gain flag to be set
+    while ((readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001) != 0b00010001) { delayTask(1); }
+    //send(ADDR_P0_SERIAL::DAC_NDAC_VAL, 0x02); //power down NDAC divider - Page 41 (but makes glitches?!)
+
+    send(ADDR_P0_SERIAL::BEEP_LEN_MSB, (length>>16)&0xFF);
+    send(ADDR_P0_SERIAL::BEEP_LEN_MID, (length>>8)&0xFF);
+    send(ADDR_P0_SERIAL::BEEP_LEN_LSB, length);
+
+    send(ADDR_P0_SERIAL::BEEP_SIN_MSB, (sin>>8)&0xFF);
+    send(ADDR_P0_SERIAL::BEEP_SIN_LSB, sin);
+
+    send(ADDR_P0_SERIAL::BEEP_COS_MSB, (cos>>8)&0xFF);
+    send(ADDR_P0_SERIAL::BEEP_COS_LSB, cos);
+
+    send(ADDR_P0_SERIAL::BEEP_R_GEN, 0x80);
+    send(ADDR_P0_SERIAL::BEEP_L_GEN, 0x80|(volume&0x3F)); //enable beep generator with right channel volume,
+
+    //send(ADDR_P0_SERIAL::DAC_NDAC_VAL, 0x84);  //power up NDAC divider - Page 41 (but makes glitches?!)
+
+    send(ADDR_P0_SERIAL::DAC_VOL_CTRL, 0x00); //unmute DACs optional
+
+}
+void RvX_TLV320DAC3100::beepMidi(uint8_t midiId, uint16_t lengthMs, bool async) {
+    //TODO Check boundaries!
+    uint16_t samplerate = 48000; //audioOutputI2S->GetRate();
+    int32_t freq = frequencyTable[midiId]; //fixed point /100
+    int16_t sin = beepTable16000[midiId][0];
+    int16_t cos = beepTable16000[midiId][1];
+
+    switch (samplerate) {
+        case 22050:
+            sin = beepTable22050[midiId][0];
+            cos = beepTable22050[midiId][1];
+            break;
+        case 32000:
+            sin = beepTable32000[midiId][0];
+            cos = beepTable32000[midiId][1];
+            break;
+        case 44100:
+            sin = beepTable44100[midiId][0];
+            cos = beepTable44100[midiId][1];
+            break;
+        case 48000:
+            sin = beepTable48000[midiId][0];
+            cos = beepTable48000[midiId][1];
+            break;
+}
+
+    int32_t cycles = 2*freq*lengthMs/1000/100;
+    int32_t samples_opt = samplerate*(cycles)*100/freq/2;
+
+    //int32_t samples = lengthMs * samplerate / 1000; //check length
+
+    beepRaw(sin, cos, samples_opt);
+    if (!async) {
+        while ((readByte(ADDR_P0_SERIAL::BEEP_L_GEN) & 0b10000000) == 0b10000000) {
+            //Box.watchdog_feed();
+            delayTask(1);
+        }
+    }
+}
+void RvX_TLV320DAC3100::beep() {
+    //beepRaw(0x30FC, 0x7642, 0x640);
+    beepMidi(84, 1000, false);
+}
+
+uint8_t RvX_TLV320DAC3100::getSampleRateIndex() {
+    uint16_t sr = 48000; //audioOutputI2S->GetRate();
+    if (sr == 48000) {
+        return 4;
+    } else if (sr == 44100) {
+        return 3;
+    } else if (sr == 32000) {
+        return 2;
+    } else if (sr == 22050) {
+        return 1;
+    }
+    return 0; //16000
+}
