@@ -40,6 +40,8 @@ class RvX_TLV320DAC3100 {
         bool
             send(uint8_t address, uint8_t target_register, uint8_t data),
             send_raw(uint8_t data);
+        
+        int _lastReadByteResult;
         uint8_t readByte(uint8_t address, uint8_t source_register);
 
         enum class PAGE {

@@ -148,19 +148,44 @@ bool RvX_TLV320DAC3100::send(uint8_t address, uint8_t target_register, uint8_t d
 
 uint8_t RvX_TLV320DAC3100::readByte(uint8_t address, uint8_t source_register) {
     _wire->beginTransmission(address);
-    if (!send_raw(source_register)) return false;
+    if (!send_raw(source_register)) {
+        _lastReadByteResult = -1;
+        return 0;
+    }
     _wire->endTransmission(false);
-    if (!_wire->requestFrom(address, (uint8_t)1)) return false;
+    if (!_wire->requestFrom(address, (uint8_t)1), true) return false;
     int result = _wire->read();
-    if (result == -1) return false;
+    _lastReadByteResult = result;
     return (uint8_t)result;
 }
 
 bool RvX_TLV320DAC3100::_initDACI2C() {
     //Extracted from logic analyzer capture of box
-    if (!send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO))
-        return false;
+    send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::SOFTWARE_RESET, 0x01);     //Self-clearing software reset for control register
+
+    //I2C Test Start
+    uint8_t data = 0xFF;
+    data = readByte(ADDR::PAGE_CONTROL);
+    if (_lastReadByteResult == -1)
+        return false;
+    if (data != (uint8_t)PAGE::SERIAL_IO)
+        return false;
+    send(ADDR::PAGE_CONTROL, PAGE::DAC_OUT_VOL);
+
+    data = readByte(ADDR::PAGE_CONTROL);
+    if (_lastReadByteResult == -1)
+        return false;
+    if (data != (uint8_t)PAGE::DAC_OUT_VOL)
+        return false;
+    send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
+    
+    data = readByte(ADDR::PAGE_CONTROL);
+    if (_lastReadByteResult == -1)
+        return false;
+    if (data != (uint8_t)PAGE::SERIAL_IO)
+        return false;
+    //I2C Test End
 
     send(ADDR_P0_SERIAL::CLOCKGEN_MUX, 0x07);       //0000:reserved, 01:PLL_CLKIN=BCLK, 11:CODEC_CLKIN=PLL_CLK 
     send(ADDR_P0_SERIAL::PLL_J_VAL, 0x20);          //00:reserved, 100000:PLL multiplier J=32 (0x20)
