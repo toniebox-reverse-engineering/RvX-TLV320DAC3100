@@ -31,6 +31,8 @@ class RvX_TLV320DAC3100 {
         const static uint8_t VOL_MAX = 0x89; //0x0A+0x7F; //0x0A=+04.0dB /max allowed value 0x30=+24.0dB
         const static uint8_t VOL_STEP = 0x06; //3dB
         const static uint8_t VOL_TEST = VOL_MIN + 6*VOL_STEP;
+        const static uint8_t DAC_FLAG_REG2_WAIT = 0b00010001; //Workaround, should be: 0b00010001;
+
         uint8_t current_volume;
         void delayTask(uint16_t ms);
         TwoWire *_wire;
@@ -68,7 +70,8 @@ class RvX_TLV320DAC3100 {
             DAC_DOSR_VAL_MSB = 0x0D,
             DAC_DOSR_VAL_LSB = 0x0E,
             CODEC_IF_CTRL1 = 0x1B,
-            DAC_FLAG_REG = 0x26,
+            DAC_FLAG_REG1 = 0x25,
+            DAC_FLAG_REG2 = 0x26,
             DAC_INTR_FLAGS = 0x2C,
             INTR_FLAGS = 0x2E,
             INT1_CTRL_REG = 0x30,

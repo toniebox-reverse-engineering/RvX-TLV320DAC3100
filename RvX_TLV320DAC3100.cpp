@@ -6,15 +6,14 @@ void RvX_TLV320DAC3100::delayTask(uint16_t ms) {
 
 bool RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
     _wire = &Wire;
-    _wire->begin();
     _i2caddr = i2caddr;
 
     if (!_initDACI2C())
         return false;
 
-
-    if (!setVolume(VOL_MIN))
-        return false;
+    //beep();
+    //if (!setVolume(VOL_MIN))
+    //    return false;
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::DAC_VOL_CTRL, 0x00);
 
@@ -118,11 +117,12 @@ bool RvX_TLV320DAC3100::setVolume(uint8_t volume) {
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     send(ADDR_P0_SERIAL::DAC_VOL_L_CTRL, volumeConv);
     send(ADDR_P0_SERIAL::DAC_VOL_R_CTRL, volumeConv);
+
     uint8_t flag_reg = 0;
     for(uint8_t i=0; i<50; i++) {
-        flag_reg = readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001;
-        if (flag_reg == 0b00010001) {
-    current_volume = volume;
+        flag_reg = readByte(ADDR_P0_SERIAL::DAC_FLAG_REG2) & DAC_FLAG_REG2_WAIT;
+        if (flag_reg == DAC_FLAG_REG2_WAIT) {
+            current_volume = volume;
             return true;
         }
         delayTask(1);
@@ -153,8 +153,13 @@ uint8_t RvX_TLV320DAC3100::readByte(uint8_t address, uint8_t source_register) {
         return 0;
     }
     _wire->endTransmission(false);
-    if (!_wire->requestFrom(address, (uint8_t)1), true) return false;
+    if (!_wire->requestFrom(address, (uint8_t)1)) {
+        _lastReadByteResult = -2;
+        return 0;
+    }
     int result = _wire->read();
+    //_wire->beginTransmission(address);
+    //_wire->endTransmission(true);
     _lastReadByteResult = result;
     return (uint8_t)result;
 }
@@ -167,21 +172,21 @@ bool RvX_TLV320DAC3100::_initDACI2C() {
     //I2C Test Start
     uint8_t data = 0xFF;
     data = readByte(ADDR::PAGE_CONTROL);
-    if (_lastReadByteResult == -1)
+    if (_lastReadByteResult < 0)
         return false;
     if (data != (uint8_t)PAGE::SERIAL_IO)
         return false;
     send(ADDR::PAGE_CONTROL, PAGE::DAC_OUT_VOL);
 
     data = readByte(ADDR::PAGE_CONTROL);
-    if (_lastReadByteResult == -1)
+    if (_lastReadByteResult < 0)
         return false;
     if (data != (uint8_t)PAGE::DAC_OUT_VOL)
         return false;
     send(ADDR::PAGE_CONTROL, PAGE::SERIAL_IO);
     
     data = readByte(ADDR::PAGE_CONTROL);
-    if (_lastReadByteResult == -1)
+    if (_lastReadByteResult < 0)
         return false;
     if (data != (uint8_t)PAGE::SERIAL_IO)
         return false;
@@ -288,7 +293,7 @@ void RvX_TLV320DAC3100::beepRaw(uint16_t sin, uint16_t cos, uint32_t length, uin
 
     send(ADDR_P0_SERIAL::DAC_VOL_CTRL, 0x0C); //mute DACs //optional
     //f 30 26 xxx1xxx1 # wait for DAC gain flag to be set
-    while ((readByte(ADDR_P0_SERIAL::DAC_FLAG_REG) & 0b00010001) != 0b00010001) { delayTask(1); }
+    while ((readByte(ADDR_P0_SERIAL::DAC_FLAG_REG2) & DAC_FLAG_REG2_WAIT) != DAC_FLAG_REG2_WAIT) { delayTask(1); }
     //send(ADDR_P0_SERIAL::DAC_NDAC_VAL, 0x02); //power down NDAC divider - Page 41 (but makes glitches?!)
 
     send(ADDR_P0_SERIAL::BEEP_LEN_MSB, (length>>16)&0xFF);
