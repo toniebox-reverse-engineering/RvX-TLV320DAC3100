@@ -8,6 +8,7 @@ bool RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
     _wire = &Wire;
     _i2caddr = i2caddr;
 
+    _wire->begin();
     if (!_initDACI2C())
         return false;
 
