@@ -30,6 +30,10 @@ bool RvX_TLV320DAC3100::begin(uint8_t i2caddr) {
    return true;
 }
 
+void RvX_TLV320DAC3100::powerDown() {
+    
+}
+
 
 bool RvX_TLV320DAC3100::send(uint8_t target_register, uint8_t data) {
     return send(_i2caddr, target_register, data);

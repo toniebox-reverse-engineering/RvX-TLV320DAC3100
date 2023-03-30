@@ -12,6 +12,7 @@ class RvX_TLV320DAC3100 {
         };
         bool begin(uint8_t i2caddr);
         void loop();
+        void powerDown();
 
         void
             beep(),
